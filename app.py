@@ -1,59 +1,169 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import random
+import re
+from datetime import datetime
 
 app = Flask(__name__)
 
-# Knowledge base for the chatbot
-knowledge_base = {
-    "greetings": {
-        "responses": [
-            "Hello! I'm your Digital Literacy Assistant. How can I help you today?",
-            "Hi there! Ready to learn about WhatsApp, Paytm or Google Maps?",
-            "Welcome! Ask me anything about using digital tools like WhatsApp, Paytm or Google Maps."
-        ]
-    },
-    "whatsapp": {
-        "faqs": {
-            "how to create account": "To create a WhatsApp account:\n1. Download WhatsApp from your app store\n2. Open the app and agree to terms\n3. Verify your phone number via SMS\n4. Set up your profile name and photo",
-            "send messages": "To send messages:\n1. Open a chat\n2. Tap the message box\n3. Type your message\n4. Tap the send button (paper plane icon)",
-            "make calls": "To make calls:\n1. Open the chat with the person\n2. Tap the phone icon for voice call or video icon for video call\n3. Wait for them to answer",
-            "groups": "To create a group:\n1. Tap the 3-dot menu > New group\n2. Select contacts to add\n3. Set a group name and photo\n4. Tap the green checkmark"
+class DigitalLiteracyChatbot:
+    def __init__(self):
+        self.knowledge_base = self._load_knowledge_base()
+        self.user_sessions = {}
+        self.current_tutorials = {}
+
+    def _load_knowledge_base(self):
+        return {
+            "greetings": {
+                "patterns": ["hi", "hello", "hey", "greetings"],
+                "responses": [
+                    "Hello! I'm your Digital Literacy Assistant. What would you like to learn today?",
+                    "Hi there! Ready to master WhatsApp, Paytm or Google Maps?",
+                    "Welcome! I can help with WhatsApp, Paytm, and Google Maps. What do you need?"
+                ]
+            },
+            "whatsapp": {
+                "faqs": {
+                    "account": {
+                        "questions": ["create account", "sign up", "register"],
+                        "answer": """To create a WhatsApp account:
+1. Download WhatsApp from your app store
+2. Open and agree to terms
+3. Verify your phone number via SMS
+4. Set up your profile""",
+                        "follow_up": "Would you like to know about WhatsApp security features next?"
+                    },
+                    "security": {
+                        "questions": ["security", "privacy", "safe"],
+                        "answer": """WhatsApp security features:
+• End-to-end encryption
+• Two-step verification
+• Privacy settings for last seen/profile photo
+• Block unwanted contacts""",
+                        "tutorials": [
+                            "WhatsApp Security Guide: https://example.com/whatsapp-security",
+                            "Privacy Settings: https://example.com/whatsapp-privacy"
+                        ]
+                    }
+                },
+                "tutorials": [
+                    {"title": "WhatsApp Basics", "url": "https://example.com/whatsapp-basics", "steps": 5},
+                    {"title": "Business Features", "url": "https://example.com/whatsapp-business", "steps": 7}
+                ]
+            },
+
+            "paytm": {
+                "faqs": {
+                    "wallet": {
+                        "questions": ["create wallet", "set up wallet", "wallet"],
+                        "answer": """To create Paytm wallet:
+1. Download Paytm app
+2. Sign up with mobile number
+3. Complete KYC verification
+4. Add money to wallet""",
+                        "follow_up": "Would you like to know how to secure your Paytm wallet?"
+                    },
+                    "security": {
+                    "questions": ["secure", "safety", "protection"],
+                    "answer": """Paytm security features:
+• UPI PIN protection
+• Transaction alerts
+• Biometric login
+• Device binding""",
+                        "tutorials": [
+                            "Paytm Security Guide: https://example.com/paytm-security",
+                            "UPI Safety: https://example.com/paytm-upi-safety"
+                        ]
+                    }
+                },
+    "tutorials": [
+        {"title": "Paytm Wallet Guide", "url": "https://example.com/paytm-wallet", "steps": 6},
+        {"title": "UPI Payments", "url": "https://example.com/paytm-upi", "steps": 4}
+    ]
+},
+"google_maps": {
+    "faqs": {
+        "navigation": {
+            "questions": ["navigate", "directions", "route"],
+            "answer": """To get directions:
+1. Search for a place
+2. Tap 'Directions'
+3. Choose transport mode
+4. Tap 'Start'""",
+            "follow_up": "Would you like to learn about offline maps?"
         },
-        "tutorials": [
-            "WhatsApp Basics: https://example.com/whatsapp-basics",
-            "Advanced WhatsApp Features: https://example.com/whatsapp-advanced"
-        ]
+        "offline": {
+            "questions": ["offline", "download map"],
+            "answer": """Using offline maps:
+1. Search for an area
+2. Tap location name
+3. Tap 'Download'
+4. Select area""",
+            "tutorials": [
+                "Offline Maps Guide: https://example.com/maps-offline",
+                "Data Saving Tips: https://example.com/maps-data-saving"
+            ]
+        }
     },
-    "paytm": {
-        "faqs": {
-            "create wallet": "To create Paytm wallet:\n1. Download Paytm app\n2. Sign up with your mobile number\n3. Complete KYC verification\n4. Add money to your wallet",
-            "send money": "To send money:\n1. Open Paytm app\n2. Tap 'Pay' or 'Send Money'\n3. Enter recipient mobile number or scan QR\n4. Enter amount and confirm",
-            "pay bills": "To pay bills:\n1. Tap 'Electricity', 'Mobile', etc.\n2. Enter your customer ID/phone number\n3. Verify details and enter amount\n4. Confirm payment",
-            "bank transfer": "For bank transfer:\n1. Tap 'Bank Transfer'\n2. Select beneficiary or add new\n3. Enter amount and notes\n4. Confirm with UPI PIN"
-        },
-        "tutorials": [
-            "Paytm Wallet Guide: https://example.com/paytm-wallet",
-            "UPI Payments: https://example.com/paytm-upi"
-        ]
-    },
-    "google_maps": {
-        "faqs": {
-            "navigate": "To navigate:\n1. Search for a place or tap on map\n2. Tap 'Directions'\n3. Choose transportation mode\n4. Tap 'Start' to begin navigation",
-            "save places": "To save places:\n1. Find a location you like\n2. Tap the name/address at bottom\n3. Tap 'Save' and choose a list\n4. Add to Favorites or custom list",
-            "share location": "To share location:\n1. Tap the blue dot (your location)\n2. Tap 'Share your location'\n3. Choose duration and contacts\n4. Tap 'Share'",
-            "offline maps": "For offline maps:\n1. Search for an area\n2. Tap the name/address at bottom\n3. Tap 'Download'\n4. Select area and download"
-        },
-        "tutorials": [
-            "Maps Navigation: https://example.com/maps-navigation",
-            "Advanced Map Features: https://example.com/maps-advanced"
-        ]
-    },
-    "fallback": [
-        "I'm not sure I understand. Could you rephrase that?",
-        "I specialize in WhatsApp, Paytm and Google Maps. Could you ask about those?",
-        "Here's what I can help with:\n- WhatsApp account setup\n- Paytm payments\n- Google Maps navigation\nWhat would you like to know?"
+    "tutorials": [
+        {"title": "Navigation Basics", "url": "https://example.com/maps-navigation", "steps": 5},
+        {"title": "Advanced Features", "url": "https://example.com/maps-advanced", "steps": 8}
     ]
 }
+            # Similar expanded structures for Paytm and Google Maps...
+            "fallback": [
+                "I'm not sure I understand. Could you ask about WhatsApp, Paytm or Google Maps?",
+                "I specialize in digital tools. Try asking about WhatsApp payments or Maps navigation!",
+                "Here's what I can help with:\n- WhatsApp setup\n- Paytm wallet\n- Maps offline usage"
+            ]
+        }
+
+    def process_message(self, user_id, message):
+        message = message.lower()
+        response = {
+            "text": "",
+            "options": [],
+            "tutorials": []
+        }
+
+        # Check for greetings
+        if any(word in message for word in self.knowledge_base["greetings"]["patterns"]):
+            response["text"] = random.choice(self.knowledge_base["greetings"]["responses"])
+            response["options"] = ["WhatsApp", "Paytm", "Google Maps"]
+            return response
+
+        # Check for WhatsApp queries
+        if "whatsapp" in message:
+            for faq in self.knowledge_base["whatsapp"]["faqs"].values():
+                if any(q in message for q in faq["questions"]):
+                    response["text"] = faq["answer"]
+                    if "follow_up" in faq:
+                        response["options"] = ["Yes", "No"]
+                        self.user_sessions[user_id] = {"follow_up": "whatsapp:security"}
+                    if "tutorials" in faq:
+                        response["tutorials"] = faq["tutorials"]
+                    return response
+            
+            response["text"] = "Here are WhatsApp topics I can help with:"
+            response["options"] = [topic for topic in self.knowledge_base["whatsapp"]["faqs"].keys()]
+            response["tutorials"] = [tut["title"] for tut in self.knowledge_base["whatsapp"]["tutorials"]]
+            return response
+
+        # Handle follow-up questions
+        if user_id in self.user_sessions and "follow_up" in self.user_sessions[user_id]:
+            if "yes" in message:
+                topic = self.user_sessions[user_id]["follow_up"].split(":")[1]
+                response["text"] = self.knowledge_base["whatsapp"]["faqs"][topic]["answer"]
+                if "tutorials" in self.knowledge_base["whatsapp"]["faqs"][topic]:
+                    response["tutorials"] = self.knowledge_base["whatsapp"]["faqs"][topic]["tutorials"]
+                del self.user_sessions[user_id]["follow_up"]
+                return response
+
+        # Fallback response
+        response["text"] = random.choice(self.knowledge_base["fallback"])
+        response["options"] = ["WhatsApp", "Paytm", "Google Maps"]
+        return response
+
+chatbot = DigitalLiteracyChatbot()
 
 @app.route('/')
 def home():
@@ -61,71 +171,12 @@ def home():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    try:
-        data = request.get_json()
-        user_message = data.get('message', '').lower()
-        
-        # Check for greetings
-        if any(word in user_message for word in ['hi', 'hello', 'hey']):
-            return jsonify({
-                'response': random.choice(knowledge_base['greetings']['responses'])
-            })
-        
-        # Check for WhatsApp queries
-        elif 'whatsapp' in user_message:
-            for question in knowledge_base['whatsapp']['faqs']:
-                if question in user_message:
-                    return jsonify({
-                        'response': knowledge_base['whatsapp']['faqs'][question],
-                        'tutorials': knowledge_base['whatsapp']['tutorials']
-                    })
-            
-            return jsonify({
-                'response': "Here are common WhatsApp questions I can answer:\n" + 
-                           "\n".join([f"- {q.replace('_', ' ')}" for q in knowledge_base['whatsapp']['faqs'].keys()]),
-                'tutorials': knowledge_base['whatsapp']['tutorials']
-            })
-        
-        # Check for Paytm queries
-        elif 'paytm' in user_message:
-            for question in knowledge_base['paytm']['faqs']:
-                if question in user_message:
-                    return jsonify({
-                        'response': knowledge_base['paytm']['faqs'][question],
-                        'tutorials': knowledge_base['paytm']['tutorials']
-                    })
-            
-            return jsonify({
-                'response': "Here are common Paytm questions I can answer:\n" + 
-                           "\n".join([f"- {q.replace('_', ' ')}" for q in knowledge_base['paytm']['faqs'].keys()]),
-                'tutorials': knowledge_base['paytm']['tutorials']
-            })
-        
-        # Check for Google Maps queries
-        elif any(term in user_message for term in ['google maps', 'maps', 'navigation']):
-            for question in knowledge_base['google_maps']['faqs']:
-                if question in user_message:
-                    return jsonify({
-                        'response': knowledge_base['google_maps']['faqs'][question],
-                        'tutorials': knowledge_base['google_maps']['tutorials']
-                    })
-            
-            return jsonify({
-                'response': "Here are common Google Maps questions I can answer:\n" + 
-                           "\n".join([f"- {q.replace('_', ' ')}" for q in knowledge_base['google_maps']['faqs'].keys()]),
-                'tutorials': knowledge_base['google_maps']['tutorials']
-            })
-        
-        # Fallback response
-        else:
-            return jsonify({
-                'response': random.choice(knowledge_base['fallback'])
-            })
-            
-    except Exception as e:
-        return jsonify({
-            'response': f"Sorry, I encountered an error: {str(e)}"
-        })
+    data = request.get_json()
+    user_id = data.get('user_id', 'default')
+    message = data.get('message', '')
+    
+    response = chatbot.process_message(user_id, message)
+    return jsonify(response)
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=8000, debug=True)
