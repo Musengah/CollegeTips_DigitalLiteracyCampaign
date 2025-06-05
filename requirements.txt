@@ -1,3 +1,2 @@
-flask
-json
-random
+flask==3.1.1
+gunicorn==21.2.0
