@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify
-import json
+from flask import Flask, render_template, request, jsonify
+import random
 
 app = Flask(__name__)
 
@@ -57,7 +57,7 @@ knowledge_base = {
 
 @app.route('/')
 def home():
-    return "Digital Literacy Chatbot Backend"
+    return render_template('index.html')
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -128,4 +128,4 @@ def chat():
         })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=True)
