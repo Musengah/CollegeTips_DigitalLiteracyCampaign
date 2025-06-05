@@ -1,114 +1,186 @@
-// Smooth scrolling
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        document.querySelector(this.getAttribute('href')).scrollIntoView({
-            behavior: 'smooth'
+document.addEventListener('DOMContentLoaded', function() {
+    // Chatbot UI Class
+    class ChatbotUI {
+        constructor() {
+            this.elements = {
+                button: document.getElementById('chatbotButton'),
+                window: document.getElementById('chatbotWindow'),
+                close: document.getElementById('chatbotClose'),
+                messages: document.getElementById('chatbotMessages'),
+                input: document.getElementById('chatbotInput'),
+                send: document.getElementById('chatbotSend')
+            };
+            this.userId = `user_${Math.random().toString(36).substr(2, 9)}`;
+            this.init();
+        }
+
+        init() {
+            this.elements.button.addEventListener('click', () => this.toggleChat());
+            this.elements.close.addEventListener('click', () => this.closeChat());
+            this.elements.send.addEventListener('click', () => this.handleSend());
+            this.elements.input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.handleSend();
+            });
+
+            // Initial greeting
+            this.addMessage("Hello! I'm your Digital Literacy Assistant. What would you like to learn today?", false, true);
+        }
+
+        toggleChat() {
+            this.elements.window.classList.toggle('active');
+            if (this.elements.window.classList.contains('active')) {
+                this.scrollToBottom();
+            }
+        }
+
+        closeChat() {
+            this.elements.window.classList.remove('active');
+        }
+
+        async handleSend() {
+            const message = this.elements.input.value.trim();
+            if (!message) return;
+
+            this.addMessage(message, true);
+            this.elements.input.value = '';
+            
+            this.showTypingIndicator();
+            
+            try {
+                const response = await this.getBotResponse(message);
+                this.addMessage(response.text, false);
+                
+                if (response.tutorials && response.tutorials.length > 0) {
+                    this.showTutorials(response.tutorials);
+                }
+                
+                if (response.options && response.options.length > 0) {
+                    this.showOptions(response.options);
+                }
+            } catch (error) {
+                this.addMessage("Sorry, I'm having trouble connecting. Please try again later.", false);
+                console.error('Chatbot error:', error);
+            }
+            
+            this.hideTypingIndicator();
+        }
+
+        async getBotResponse(message) {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: this.userId,
+                    message: message
+                })
+            });
+            return await response.json();
+        }
+
+        addMessage(text, isUser, isInitial = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isUser ? 'user-message' : 'bot-message');
+            
+            if (isInitial) {
+                messageDiv.classList.add('initial-message');
+            }
+            
+            messageDiv.textContent = text;
+            this.elements.messages.appendChild(messageDiv);
+            this.scrollToBottom();
+        }
+
+        showOptions(options) {
+            const optionsContainer = document.createElement('div');
+            optionsContainer.classList.add('options-container');
+            
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.classList.add('option-button');
+                button.textContent = option;
+                button.addEventListener('click', () => {
+                    this.elements.messages.removeChild(optionsContainer);
+                    this.addMessage(option, true);
+                    this.handleSend(option);
+                });
+                optionsContainer.appendChild(button);
+            });
+            
+            this.elements.messages.appendChild(optionsContainer);
+            this.scrollToBottom();
+        }
+
+        showTutorials(tutorials) {
+            const tutorialsContainer = document.createElement('div');
+            tutorialsContainer.classList.add('tutorials-container');
+            
+            const title = document.createElement('h4');
+            title.textContent = 'Recommended Tutorials:';
+            tutorialsContainer.appendChild(title);
+            
+            tutorials.forEach(tutorial => {
+                const tutorialItem = document.createElement('a');
+                tutorialItem.classList.add('tutorial-item');
+                tutorialItem.href = typeof tutorial === 'string' ? tutorial : tutorial.url;
+                tutorialItem.target = '_blank';
+                tutorialItem.textContent = typeof tutorial === 'string' 
+                    ? tutorial.split('/').pop().replace(/-/g, ' ')
+                    : tutorial.title;
+                tutorialsContainer.appendChild(tutorialItem);
+            });
+            
+            this.elements.messages.appendChild(tutorialsContainer);
+            this.scrollToBottom();
+        }
+
+        showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typingIndicator';
+            typingDiv.classList.add('typing-indicator');
+            
+            // Create animated dots
+            typingDiv.innerHTML = `
+                <span>Digital Assistant is typing</span>
+                <span class="dot">.</span>
+                <span class="dot">.</span>
+                <span class="dot">.</span>
+            `;
+            
+            this.elements.messages.appendChild(typingDiv);
+            this.scrollToBottom();
+        }
+
+        hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                this.elements.messages.removeChild(typingIndicator);
+            }
+        }
+
+        scrollToBottom() {
+            this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
+        }
+    }
+
+    // Initialize Chatbot
+    const chatbot = new ChatbotUI();
+
+    // Page Interactions
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
         });
     });
-});
 
-// Navbar background on scroll
-window.addEventListener('scroll', () => {
-    const nav = document.querySelector('.nav');
-    nav.style.background = window.scrollY > 50 ? 
-        'rgba(15, 15, 35, 0.95)' : 'rgba(255, 255, 255, 0.1)';
-});
-
-// Chatbot functionality
-const chatbotButton = document.getElementById('chatbotButton');
-const chatbotWindow = document.getElementById('chatbotWindow');
-const chatbotClose = document.getElementById('chatbotClose');
-const chatbotMessages = document.getElementById('chatbotMessages');
-const chatbotInput = document.getElementById('chatbotInput');
-const chatbotSend = document.getElementById('chatbotSend');
-
-// Toggle chatbot window
-chatbotButton.addEventListener('click', () => {
-    chatbotWindow.classList.toggle('active');
-    if (chatbotWindow.classList.contains('active')) {
-        // Add welcome message when first opened
-        if (chatbotMessages.children.length <= 1) { // Only if empty (1 is sample message)
-            addMessage("Hello! I'm your Digital Literacy Assistant. Ask me about WhatsApp, Paytm or Google Maps!", false);
-        }
-    }
-});
-
-// Close chatbot window
-chatbotClose.addEventListener('click', () => {
-    chatbotWindow.classList.remove('active');
-});
-
-// Add message to chat
-function addMessage(text, isUser) {
-    const messageDiv = document.createElement('div');
-    messageDiv.classList.add('message');
-    messageDiv.classList.add(isUser ? 'user-message' : 'bot-message');
-    messageDiv.textContent = text;
-    chatbotMessages.appendChild(messageDiv);
-    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
-}
-
-// Send message to Flask backend
-async function sendToBackend(message) {
-    try {
-        const response = await fetch('/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ message: message })
-        });
-        
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('Error:', error);
-        return { response: "Sorry, I'm having trouble connecting to the server." };
-    }
-}
-
-// Handle send button click
-chatbotSend.addEventListener('click', async () => {
-    const message = chatbotInput.value.trim();
-    if (message) {
-        addMessage(message, true);
-        chatbotInput.value = '';
-        
-        // Show typing indicator
-        const typingIndicator = document.createElement('div');
-        typingIndicator.id = 'typingIndicator';
-        typingIndicator.textContent = 'Digital Assistant is typing...';
-        typingIndicator.style.color = '#666';
-        typingIndicator.style.fontStyle = 'italic';
-        typingIndicator.style.margin = '0.5rem 1rem';
-        chatbotMessages.appendChild(typingIndicator);
-        chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
-        
-        // Get response from backend
-        const botResponse = await sendToBackend(message);
-        
-        // Remove typing indicator
-        document.getElementById('typingIndicator').remove();
-        
-        // Add bot response
-        addMessage(botResponse.response, false);
-        
-        // Add tutorials if available
-        if (botResponse.tutorials) {
-            const tutorialsDiv = document.createElement('div');
-            tutorialsDiv.classList.add('message', 'bot-message');
-            tutorialsDiv.innerHTML = '<strong>Tutorials:</strong><br>' + 
-                botResponse.tutorials.map(t => `• <a href="${t}" target="_blank">${t.split('/').pop().replace('-', ' ')}</a>`).join('<br>');
-            chatbotMessages.appendChild(tutorialsDiv);
-            chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
-        }
-    }
-});
-
-// Handle Enter key
-chatbotInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        chatbotSend.click();
-    }
+    window.addEventListener('scroll', () => {
+        const nav = document.querySelector('.nav');
+        nav.style.background = window.scrollY > 50 ? 
+            'rgba(15, 15, 35, 0.95)' : 'rgba(255, 255, 255, 0.1)';
+    });
 });
