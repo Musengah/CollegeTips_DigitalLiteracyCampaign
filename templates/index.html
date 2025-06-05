@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital Literacy Campaign</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css')}}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
     <nav class="nav">
@@ -78,12 +78,6 @@
                 <div class="message bot-message">
                     Hello! I'm your digital assistant. How can I help you today?
                 </div>
-                <div class="message user-message">
-                    Hi! I need help with the courses.
-                </div>
-                <div class="message bot-message">
-                    I can help you with information about our WhatsApp, Paytm, and Google Maps courses. What would you like to know?
-                </div>
             </div>
             <div class="chatbot-input">
                 <input type="text" placeholder="Type your message..." id="chatbotInput">
@@ -93,6 +87,6 @@
         <button class="chatbot-button" id="chatbotButton">💬</button>
     </div>
 
-    <script src="{{ url_for ('static', filename='js/script.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
